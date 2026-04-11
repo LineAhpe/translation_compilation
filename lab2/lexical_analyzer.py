@@ -6,7 +6,10 @@ def read_source_file(filename):
         return f.read()
 
 # Ключевые слова из test.cpp
-KEYWORDS = {"using", "namespace", "int", "return", "if", "bool", "while", "switch", "case", "break", "default"}
+KEYWORDS = {"using", "namespace", "int", "return", "if", "bool", "while", "switch", "case", "break", "default", "cout", "cin", "endl", "std"}
+
+# Идентификаторы
+IDENTIFIERS = {"summ", "a", "b", "mult", "diff", "main", "SetConsoleCP", "SetConsoleOutputCP", "fl", "choice", "iostream", "windows.h"}
 
 # Булевы константы
 BOOL_CONSTANTS = {"true", "false"}
@@ -42,10 +45,30 @@ def get_token_type(lexeme):
         return "CONSTANT_FLOAT"
     if re.fullmatch(r'"[^"\n]*"', lexeme):
         return "CONSTANT_STRING"
-    if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', lexeme):
+    if lexeme in IDENTIFIERS:
         return "IDENTIFIER"
-    return None
+    lexical_error("лишняя лексема", lexeme)
 
+
+def validate(tokens):
+    for i in range(len(tokens)):
+        token_type, lexeme = tokens[i]
+
+        if token_type not in {"IDENTIFIER", "CONSTANT_INT", "CONSTANT_FLOAT", "CONSTANT_STRING", "CONSTANT_BOOL"}:
+            continue
+
+        if i > 0:
+            prev_lexeme = tokens[i - 1][1]
+            prev_token = tokens[i - 1][0]
+        if i + 1 < len(tokens):
+            next_lexeme = tokens[i + 1][1]
+            next_token = tokens[i + 1][0]
+
+        if prev_token in {"IDENTIFIER", "CONSTANT_INT", "CONSTANT_FLOAT", "CONSTANT_STRING", "CONSTANT_BOOL"}:
+            lexical_error("Две лексемы подряд без разделителя или лексеми", lexeme)
+        if prev_lexeme in {":", "{", "}", ";"} and (next_lexeme in {"return", "case", "break", "default", ";", "}", "{"} or next_token in {"KEYWORD", "DELIMITER"}):
+            if not (token_type == "IDENTIFIER" and next_lexeme == "("):
+                lexical_error("лишняя лексема", lexeme)
 
 # Лексический анализ
 def lexical_analyze(text):
@@ -61,8 +84,9 @@ def lexical_analyze(text):
             i += 1
             continue
 
-        # Обработка #include 
+        # Обработка #include
         if text.startswith("#include", i):
+            tokens.append(("KEYWORD", "#include"))
             i += len("#include")
 
             # пропускаем пробелы после #include
@@ -181,6 +205,7 @@ if content.strip() == "":
     raise SystemExit(1)
 
 tokens = lexical_analyze(content)
+validate(tokens)
 
 # Табличный вывод
 print("Лексема".ljust(21) + "| Тип")
